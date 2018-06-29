@@ -1,0 +1,15 @@
+{
+    "ServiceName": "service-a",
+    "Cluster": "some-cluster",
+    "TaskIAMRoleArn": "arn",
+    "Image": "registry/container",
+    "ImageTag": "xyz",
+    "AWSLogsGroupName": "name",
+    "AWSLogsRegion": "region",
+    "Environment": [
+        {
+            "name": "AWS_REGION",
+            "value": "region"
+        }
+    ]
+}
