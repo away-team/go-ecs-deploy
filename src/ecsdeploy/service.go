@@ -78,8 +78,7 @@ func isServiceActive(s *ecs.Service) bool {
 
 // waits for status == ACTIVE && RunningCount == DesiredCount, for 4 consecutive intervals
 func (e *ECSDeployer) waitForServiceHealthy(service *ecs.Service, count, wait int) error {
-	// maxAttempts := 40
-	delay := time.Duration(count) * time.Second
+	delay := time.Duration(wait) * time.Second
 	minHealthyCount := 4
 	healthyCount := 0
 
