@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 )
 
-func (e *ECSDeployer) deployOneshot(taskDef *ecs.RegisterTaskDefinitionInput) error {
+func (e *ECSDeployer) deployOneshot(taskDef *ecs.RegisterTaskDefinitionInput, count, wait int) error {
 	task, err := e.registerTask(taskDef)
 	if err != nil {
 		return err
@@ -38,13 +38,13 @@ func (e *ECSDeployer) deployOneshot(taskDef *ecs.RegisterTaskDefinitionInput) er
 		return fmt.Errorf("%s (%s)", arn, reason)
 	}
 
-	return e.waitForOneshot(res.Tasks[0].TaskArn)
+	return e.waitForOneshot(res.Tasks[0].TaskArn, count, wait)
 }
 
 // waits for status == STOPPED and exit code == 0
-func (e *ECSDeployer) waitForOneshot(taskArn *string) error {
-	maxAttempts := 50
-	delay := 6 * time.Second
+func (e *ECSDeployer) waitForOneshot(taskArn *string, count, wait int) error {
+	maxAttempts := count
+	delay := time.Duration(wait) * time.Second
 
 	for i := 0; i <= maxAttempts; i++ {
 

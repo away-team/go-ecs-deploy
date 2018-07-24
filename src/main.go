@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/away-team/go-ecs-deploy/src/ecsdeploy"
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,10 +19,9 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-// ./deploy -config <file> -template <file> -type ( oneshot | service ) [ -timeout int ]
+// ./deploy -config <file> -template <file> -type ( oneshot | service ) [ -count int -wait int]
 
 const (
-	defaultTimeout            = 360 * time.Second
 	configFilename            = "config.json"
 	environmentConfigFilename = "environment.json"
 	ServiceTypeService        = "service"
@@ -56,6 +54,9 @@ func main() {
 	config := flag.String("config", "", "The path to the config file to use")
 	tpl := flag.String("template", "", "The path to the template to use")
 	serviceType := flag.String("type", "", "The type of service to deploy {service | oneshot}")
+	count := flag.Int("count", 40, "The number of iterations to wait for healthy status")
+	wait := flag.Int("wait", 5, "The number of seconds to wait between health checks")
+
 	debug := flag.Bool("debug", false, "Print the the rendered template and exit without deploying")
 	flag.Parse()
 
@@ -150,10 +151,10 @@ func main() {
 
 	if *serviceType == ServiceTypeService {
 		log.Printf("Deploying service...")
-		deployErr = deployer.DeployService(&conf.Task, &conf.Service)
+		deployErr = deployer.DeployService(&conf.Task, &conf.Service, *count, *wait)
 	} else {
 		log.Printf("Deploying oneshot...")
-		deployErr = deployer.DeployOneshot(&conf.Task)
+		deployErr = deployer.DeployOneshot(&conf.Task, *count, *wait)
 	}
 
 	if deployErr != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 )
 
-func (e *ECSDeployer) deployService(taskDef *ecs.RegisterTaskDefinitionInput, service *ecs.CreateServiceInput) error {
+func (e *ECSDeployer) deployService(taskDef *ecs.RegisterTaskDefinitionInput, service *ecs.CreateServiceInput, count, wait int) error {
 
 	task, err := e.registerTask(taskDef)
 	if err != nil {
@@ -64,7 +64,7 @@ func (e *ECSDeployer) deployService(taskDef *ecs.RegisterTaskDefinitionInput, se
 	}
 
 	log.Printf("waiting for stable service state...")
-	return e.waitForServiceHealthy(s)
+	return e.waitForServiceHealthy(s, count, wait)
 }
 
 func isServiceActive(s *ecs.Service) bool {
@@ -77,16 +77,16 @@ func isServiceActive(s *ecs.Service) bool {
 }
 
 // waits for status == ACTIVE && RunningCount == DesiredCount, for 4 consecutive intervals
-func (e *ECSDeployer) waitForServiceHealthy(service *ecs.Service) error {
-	maxAttempts := 20
-	delay := 6 * time.Second
-	minHealthyCount := 6
+func (e *ECSDeployer) waitForServiceHealthy(service *ecs.Service, count, wait int) error {
+	// maxAttempts := 40
+	delay := time.Duration(count) * time.Second
+	minHealthyCount := 4
 	healthyCount := 0
 
 	expectedDeployments := 1
 	expectedRunning := *service.DesiredCount
 
-	for i := 0; i <= maxAttempts; i++ {
+	for i := 0; i <= count; i++ {
 
 		res, err := e.client.DescribeServices(&ecs.DescribeServicesInput{
 			Cluster: makeStrPtr(e.cluster),

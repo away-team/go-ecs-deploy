@@ -28,12 +28,12 @@ func NewECSDeployer(cluster string) *ECSDeployer {
 	}
 }
 
-func (e *ECSDeployer) DeployService(task *ecs.RegisterTaskDefinitionInput, service *ecs.CreateServiceInput) error {
-	return e.deployService(task, service)
+func (e *ECSDeployer) DeployService(task *ecs.RegisterTaskDefinitionInput, service *ecs.CreateServiceInput, count, wait int) error {
+	return e.deployService(task, service, count, wait)
 }
 
-func (e *ECSDeployer) DeployOneshot(task *ecs.RegisterTaskDefinitionInput) error {
-	return e.deployOneshot(task)
+func (e *ECSDeployer) DeployOneshot(task *ecs.RegisterTaskDefinitionInput, count, wait int) error {
+	return e.deployOneshot(task, count, wait)
 }
 
 // Takes config for a task definiteion to be registered and returns a description of a registered task
