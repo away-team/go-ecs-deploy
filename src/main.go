@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/promoboxx/go-ecs-deploy/src/ecsdeploy"
 )
 
 // ./deploy -config <file> -template <file> -type ( oneshot | service ) [ -count int -wait int]
@@ -30,6 +31,8 @@ func main() {
 	service := flag.String("service", "", "The path to the service config file to use")
 	task := flag.String("task", "", "The path to the task config file to use")
 	serviceType := flag.String("type", "", "The type of service to deploy {service | oneshot}")
+	count := flag.Int("count", 40, "The number of iterations to wait for healthy status")
+	wait := flag.Int("wait", 5, "The number of seconds to wait between health checks")
 	flag.Parse()
 
 	if *service == "" {
@@ -86,20 +89,20 @@ func main() {
 
 	// Deploy
 	// Create the deployer
-	// deployer := ecsdeploy.NewECSDeployer(*serviceConf.Cluster)
-	// var deployErr error
+	deployer := ecsdeploy.NewECSDeployer(*serviceConf.Cluster)
+	var deployErr error
 
-	// if *serviceType == ServiceTypeService {
-	// 	log.Printf("Deploying service...")
-	// 	deployErr = deployer.DeployService(&taskConf, &serviceConf, *count, *wait)
-	// } else {
-	// 	log.Printf("Deploying oneshot...")
-	// 	deployErr = deployer.DeployOneshot(&taskConf, *count, *wait)
-	// }
+	if *serviceType == ServiceTypeService {
+		log.Printf("Deploying service...")
+		deployErr = deployer.DeployService(&taskConf, &serviceConf, *count, *wait)
+	} else {
+		log.Printf("Deploying oneshot...")
+		deployErr = deployer.DeployOneshot(&taskConf, *count, *wait)
+	}
 
-	// if deployErr != nil {
-	// 	log.Fatalf("Deployment failed: %v", deployErr)
-	// }
+	if deployErr != nil {
+		log.Fatalf("Deployment failed: %v", deployErr)
+	}
 
 	log.Printf("Deploy success")
 	os.Exit(0)
