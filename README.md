@@ -14,9 +14,7 @@ A oneshot service is expected to run and exit.  It uses [ECS RunTask](https://do
 
 ## CLI Tool
 
-The included CLI tool loads a config file and a template.  The template file is first executed with the variables in the execution environment, then again with the specified config files.  Values set in the config file will override values set in the environment.
-
-Default templates are located in the `templates/` directory, with some example config files under `example/`
+The included CLI tool loads a service and task config file, injects the `taskDefinition` and deploys it to ECS.
 
 ## Usage
 AWS credentials must be available in the usual ways (metadata endpoint, credentials file, environment vars).
@@ -27,76 +25,80 @@ AWS credentials must be available in the usual ways (metadata endpoint, credenti
 
 Use only values in the config file:
 ```sh
-go run src/main.go -config example/service-a/service-full.json -template templates/service.json.tpl -type service
+go run src/main.go  -service ../deploy-config-dev/example-service/service.json  -task ../deploy-config-dev/example-service/task.json -type service
 ```
-
-Set some vars in the environment and the rest in a config file.  This is useful for substituting runtime CI variables that change frequently.
-```sh
-ImageTag=sometag Image=registry/image go run src/main.go -config example/service-a/service-full.json -template templates/service.json.tpl -type service
-```
-
-The above commands will:
-* replace any template vars with environment variables first, then the config file.
-* register a new task definition
-* create a new service or update an existing matching service
-    * If the service already exists the service template `InitialCount` will be changed to match the `DesiredCount` in ECS, so as to not undo any manual or auto scaling actions.
-* block waiting for the service to be stable 
 
 
 ## Config Examples
 A full service config.
 ```json
 {
-    "ServiceName": "service-a",
-    "Cluster": "some-cluster",
-    "SchedulerIAMRoleArn": "arn",
-    "TaskIAMRoleArn": "arn",
-    "TargetGroupArn": "arn",
-    "InitialCount": 2,
-    "Image": "registry/container",
-    "ImageTag": "xyz",
-    "MemoryReservation": 128,
-    "CPUReservation": 128,
-    "AWSLogsGroupName": "name",
-    "AWSLogsRegion": "region",
-    "Environment": [
+    "cluster": "dev",
+    "serviceName": "test-service",
+    "taskDefinition": "",
+    "loadBalancers": [
         {
-            "name": "ENVIRONMENT",
-            "value": "dev"
+            "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:265538938700:targetgroup/dev-example/7b4690956daba80b",
+            "containerName": "example-service",
+            "containerPort": 8080
         }
-    ]
+    ],
+    "desiredCount": 2,
+    "clientToken": "<REPLACE ME>",
+    "role": "arn:aws:iam::265538938700:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+    "deploymentConfiguration": {
+        "maximumPercent": 200,
+        "minimumHealthyPercent": 100
+    },
+    "healthCheckGracePeriodSeconds": 5,
+    "schedulingStrategy": "REPLICA"
 }
 ```
 
-
-A partial service config that will require the missing vars to be set in the environment.  Note that `Image` and `ImageTag` are omitted.
+A full task config.
 ```json
 {
-    "ServiceName": "service-a",
-    "Cluster": "some-cluster",
-    "SchedulerIAMRoleArn": "arn",
-    "TaskIAMRoleArn": "arn",
-    "TargetGroupArn": "arn",
-    "InitialCount": 2,
-    "MemoryReservation": 128,
-    "CPUReservation": 128,
-    "AWSLogsGroupName": "name",
-    "AWSLogsRegion": "region",
-    "Environment": [
+    "family": "dev-example-service",
+    "executionRoleArn": "arn:aws:iam::265538938700:role/services/dev-example20181220204138334200000001",
+    "containerDefinitions": [
         {
-            "name": "ENVIRONMENT",
-            "value": "dev"
+            "name": "example-service",
+            "image": "pbxx/example-service:master-latest",
+            "repositoryCredentials": {
+                "credentialsParameter": "arn:aws:secretsmanager:us-east-1:265538938700:secret:common/dockerhub_pbxx_read_only-Z3Qpuv"
+            },
+            "cpu": 100,
+            "memoryReservation": 50,
+            "portMappings": [
+                {
+                    "containerPort": 8080
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "ENVIRONMENT",
+                    "value": "dev"
+                },
+                {
+                    "name": "SERVICE_NAME",
+                    "value": "example"
+                }
+            ],
+            "dockerLabels": {
+                "com.datadoghq.ad.logs": "[{\"service\": \"example-service\"}]"
+            }
         }
     ]
 }
 ```
 
-## Included templates
+**Note** that with these examples it is expected that `clientToken` will be replaced as necessary.  This is an idempotency token and can be set to unix timestamp or similar if idempotency is not important for the deployment.  It is also recommended to replace the `containerDefinition[0].image` with a specific SHA tagged image.
 
-The templates in `templates/` are very opinionated and made for common workflows that we have.  Specifically:
-
-* `templates/migration.json.tpl` for running a container with [golang-/migrate](https://github.com/golang-migrate/migrate).  Note the `command` override.
-* `templates/service.json.tpl` for running services with some default settings.
+```bash
+jq --arg image "$IMAGE" '.containerDefinitions[0].image = $image' task.json > temp_task.json
+jq --arg token "$(date +%s)" '.clientToken = $token' service.json > temp_service.json
+```
 
 ## Notes
 
